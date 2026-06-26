@@ -32,7 +32,7 @@ https://github.com/myzane678/desktop-organizer/releases
 推荐普通用户下载 NSIS 安装包：
 
 ```text
-桌面整理 Setup 1.0.0.exe
+Desktop-Organizer-Setup-1.0.0.exe
 ```
 
 安装后会自动创建：
@@ -92,7 +92,7 @@ npm run verify:classifier
 
 ## 发布状态
 
-当前版本支持源码运行和 Windows 安装包构建。GitHub Release 会提供源码包；如果发布者上传 `dist/` 中生成的 `.exe`，普通用户可直接下载安装。
+当前版本已发布 Windows 安装包、portable 免安装版和源码包。普通用户推荐下载 `Desktop-Organizer-Setup-1.0.0.exe` 安装包。
 
 ## License
 
