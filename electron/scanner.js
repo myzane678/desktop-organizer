@@ -1,7 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { shell } = require('electron');
+const { app, shell } = require('electron');
+
+function getResourcePath(...segments) {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'app.asar.unpacked', ...segments);
+  }
+  return path.join(__dirname, '..', ...segments);
+}
 
 // 桌面路径：同时扫描用户桌面和公开桌面
 const DESKTOP_PATHS = [
@@ -101,7 +108,7 @@ function extractIconsBatch(filePaths) {
   if (filePaths.length === 0) return {};
   try {
     const { execFileSync } = require('child_process');
-    const psScript = path.join(__dirname, 'extract-icons.ps1');
+    const psScript = getResourcePath('electron', 'extract-icons.ps1');
     // 用正斜杠避免 PowerShell 反斜杠转义问题
     const jsonPaths = JSON.stringify(filePaths.map(p => p.replace(/\\/g, '/')));
     const out = execFileSync('powershell.exe', [

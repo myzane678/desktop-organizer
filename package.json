@@ -41,7 +41,10 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "桌面整理"
-    }
+    },
+    "asarUnpack": [
+      "electron/*.ps1"
+    ]
   },
   "devDependencies": {
     "electron": "^33.4.11",

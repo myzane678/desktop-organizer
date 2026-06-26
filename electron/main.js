@@ -18,6 +18,13 @@ const GRID_CONFIG_FILE = path.join(CONFIG_DIR, 'grid-config.json');
 const CONSENT_VERSION = 1;
 const ONBOARDING_VERSION = 1;
 
+function getResourcePath(...segments) {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'app.asar.unpacked', ...segments);
+  }
+  return path.join(__dirname, '..', ...segments);
+}
+
 function ensureConfigDir() {
   if (!fs.existsSync(CONFIG_DIR)) {
     fs.mkdirSync(CONFIG_DIR, { recursive: true });
@@ -476,7 +483,7 @@ function createWindow() {
 // currentPositions: [{name, x, y}] 当前桌面图标坐标
 function repositionDesktopIcons(layoutData, currentPositions) {
   return new Promise((resolve, reject) => {
-    const psScript = path.join(__dirname, 'desktop-reposition.ps1');
+    const psScript = getResourcePath('electron', 'desktop-reposition.ps1');
     const payload = { ...layoutData, currentPositions: currentPositions || [] };
     const jsonStr = JSON.stringify(payload);
 
@@ -512,7 +519,7 @@ function repositionDesktopIcons(layoutData, currentPositions) {
 // 调用 PowerShell 读取桌面图标位置（Registry 方案，备用）
 function readDesktopIconPositions() {
   return new Promise((resolve, reject) => {
-    const psScript = path.join(__dirname, 'read-desktop-icons.ps1');
+    const psScript = getResourcePath('electron', 'read-desktop-icons.ps1');
     execFile('powershell.exe', [
       '-ExecutionPolicy', 'Bypass',
       '-File', psScript,
@@ -533,7 +540,7 @@ function readDesktopIconPositions() {
 // 调用 PowerShell 读取桌面图标真实像素位置（UI Automation 方案）
 function readDesktopPositionsViaUIA() {
   return new Promise((resolve, reject) => {
-    const psScript = path.join(__dirname, 'read-desktop-positions.ps1');
+    const psScript = getResourcePath('electron', 'read-desktop-positions.ps1');
     execFile('powershell.exe', [
       '-STA', '-ExecutionPolicy', 'Bypass',
       '-File', psScript,
