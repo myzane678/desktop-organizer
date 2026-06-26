@@ -6,7 +6,7 @@ const { execFile } = require('child_process');
 const { scanDesktop, showInExplorer, openFile, DESKTOP_PATHS } = require('./scanner');
 const { classifyAll, setItemCategory, removeItemCategory, loadRules, saveRules, loadCategories, saveCategories, updateCategoryProfile } = require('./classifier');
 const { createTray, destroyTray } = require('./tray');
-const { generatePlan, executePlan, packItems } = require('./organizer');
+const { generatePlan, packItems } = require('./organizer');
 
 let mainWindow = null;
 
@@ -851,9 +851,6 @@ function registerIPC() {
     return generatePlan(classifiedData, DESKTOP_PATHS[0]);
   });
 
-  ipcMain.handle('execute-plan', async (e, plan) => {
-    return await executePlan(plan, DESKTOP_PATHS[0]);
-  });
 
   ipcMain.handle('pack-items', async (e, packPlan) => {
     const results = await packItems(packPlan);

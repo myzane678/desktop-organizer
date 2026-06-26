@@ -38,7 +38,6 @@ contextBridge.exposeInMainWorld('organizer', {
 
   // 整理桌面
   generatePlan: (classifiedData) => ipcRenderer.invoke('generate-plan', classifiedData),
-  executePlan: (plan) => ipcRenderer.invoke('execute-plan', plan),
   packItems: (packPlan) => ipcRenderer.invoke('pack-items', packPlan),
   repositionDesktop: (layoutData, currentPositions) => ipcRenderer.invoke('reposition-desktop', layoutData, currentPositions),
   hideWindow: () => ipcRenderer.invoke('hide-window'),

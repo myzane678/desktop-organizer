@@ -57,11 +57,8 @@ async function executePlan(plan, desktopPath) {
 
     for (const item of info.items) {
       try {
-        // 如果目标已存在，先删除
-        if (fs.existsSync(item.target)) {
-          fs.unlinkSync(item.target);
-        }
-        fs.renameSync(item.source, item.target);
+        const target = getUniqueTargetPath(item.target);
+        fs.renameSync(item.source, target);
         moved++;
       } catch (err) {
         failed++;
