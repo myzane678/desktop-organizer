@@ -21,6 +21,28 @@ Windows 桌面整理工具，用于扫描桌面文件、快捷方式和文件夹
 - Node.js
 - npm
 
+## 下载安装包
+
+进入 GitHub Releases 页面下载最新版本：
+
+```text
+https://github.com/myzane678/desktop-organizer/releases
+```
+
+推荐普通用户下载 NSIS 安装包：
+
+```text
+桌面整理 Setup 1.0.0.exe
+```
+
+安装后会自动创建：
+
+- 桌面快捷方式
+- 开始菜单快捷方式
+- 卸载入口
+
+如果不想安装，也可以下载 portable 免安装版本，双击运行即可；portable 版本不会自动创建桌面快捷方式。
+
 ## 本地运行
 
 ```bash
@@ -33,6 +55,17 @@ npm start
 ```bash
 npm run dev
 ```
+
+开发者打包 Windows 安装包：
+
+```bash
+npm run dist
+```
+
+打包产物会生成到 `dist/` 目录：
+
+- NSIS 安装包：适合普通用户下载安装，会创建桌面和开始菜单快捷方式。
+- portable 免安装版：适合临时使用，不会写入安装信息。
 
 分类规则验证：
 
@@ -59,7 +92,7 @@ npm run verify:classifier
 
 ## 发布状态
 
-当前为首个源码版本，建议先以本地运行方式体验；安装包发布会在后续版本补充。
+当前版本支持源码运行和 Windows 安装包构建。GitHub Release 会提供源码包；如果发布者上传 `dist/` 中生成的 `.exe`，普通用户可直接下载安装。
 
 ## License
 

@@ -6,7 +6,9 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "verify:classifier": "node scripts/verify-classifier.js"
+    "verify:classifier": "node scripts/verify-classifier.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win nsis portable"
   },
   "keywords": [
     "desktop",
@@ -16,8 +18,34 @@
   ],
   "author": "ROG",
   "license": "MIT",
+  "build": {
+    "appId": "com.myzane678.desktop-organizer",
+    "productName": "桌面整理",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "桌面整理"
+    }
+  },
   "devDependencies": {
-    "electron": "^33.4.11"
+    "electron": "^33.4.11",
+    "electron-builder": "^26.15.3"
   },
   "dependencies": {
     "windows-shortcuts": "^0.1.6"
