@@ -1,0 +1,25 @@
+{
+  "name": "desktop-organizer",
+  "version": "1.0.0",
+  "description": "Windows 桌面整理工具 - 按功能自动分类、预览并重排桌面图标",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "verify:classifier": "node scripts/verify-classifier.js"
+  },
+  "keywords": [
+    "desktop",
+    "organizer",
+    "electron",
+    "windows"
+  ],
+  "author": "ROG",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.4.11"
+  },
+  "dependencies": {
+    "windows-shortcuts": "^0.1.6"
+  }
+}

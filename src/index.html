@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>桌面整理</title>
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <!-- 顶部导航栏 -->
+  <div class="topbar">
+    <h1><span>桌面</span>整理</h1>
+
+    <div class="topbar-actions">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="搜索文件...">
+      </div>
+
+      <div class="view-toggle">
+        <button class="btn active" data-view="grid" onclick="switchView('grid')">网格</button>
+        <button class="btn" data-view="list" onclick="switchView('list')">列表</button>
+        <button class="btn" data-view="desktop" onclick="switchView('desktop')">桌面</button>
+      </div>
+
+      <span class="stats" id="statsText">加载中...</span>
+
+      <button class="btn btn-primary" onclick="rescan()">重新扫描</button>
+      <button class="btn btn-primary" onclick="openCustom()" style="background:#8b5cf6;">自定义整理</button>
+      <button class="btn btn-success" onclick="previewOrganize()">整理桌面</button>
+      <button class="btn" onclick="openLayoutManager()">布局方案</button>
+      <button class="btn" onclick="quickRestoreLatestLayout()">恢复上次布局</button>
+      <button class="btn" data-tour="help" onclick="startOnboardingTutorial({ manual: true })">帮助</button>
+    </div>
+  </div>
+
+  <!-- 主内容区 -->
+  <div class="main-content" id="mainContent">
+    <div class="loading" id="loadingState">
+      <div class="spinner"></div>
+      <p>正在扫描桌面...</p>
+    </div>
+    <div id="gridView" class="grid-view" style="display: none;"></div>
+    <div id="listView" class="list-view"></div>
+    <div id="desktopView" class="desktop-view" style="display: none;"></div>
+  </div>
+
+  <!-- 右键菜单 -->
+  <div class="context-menu" id="contextMenu"></div>
+
+  <!-- 提示消息 -->
+  <div class="toast" id="toast"></div>
+
+  <!-- 首次启动隐私同意弹窗 -->
+  <div class="overlay" id="consentOverlay" style="z-index:500;">
+    <div class="consent-modal">
+      <div class="preview-header">
+        <h2>用户条款与隐私说明</h2>
+        <p>桌面整理会在本机扫描桌面内容，用于分类、预览和整理你的桌面。</p>
+      </div>
+      <div class="consent-body">
+        <p>在开始使用前，请了解本软件会如何处理你的本地桌面信息。</p>
+        <h3>我们会读取的信息</h3>
+        <ul>
+          <li>桌面文件、文件夹和快捷方式的名称、类型与图标。</li>
+          <li>快捷方式目标路径，用于判断软件类别。</li>
+          <li>桌面图标位置，用于预览和重排桌面布局。</li>
+        </ul>
+        <h3>信息用途</h3>
+        <ul>
+          <li>用于桌面项目分类、布局预览、图标重排和记住你的整理偏好。</li>
+          <li>分类规则、手动分类、分类画像、偏好设置和同意记录默认保存在本机 <code>~/.desktop-organizer</code>。</li>
+          <li>当前版本默认本地处理，不主动上传到云端；如未来加入联网或 AI 分类功能，应另行提示并征得同意。</li>
+        </ul>
+        <h3>用户控制</h3>
+        <ul>
+          <li>你可以不同意并关闭应用。</li>
+          <li>你可以通过删除本地 <code>~/.desktop-organizer</code> 数据来重置规则、画像和偏好。</li>
+          <li>整理桌面前请确认预览，避免不符合预期的重排。</li>
+        </ul>
+        <p style="color:#94a3b8;">以上文本用于产品内说明，不构成正式法律意见；正式发布前建议由具备资质的法律或合规人员审核。</p>
+        <label class="consent-check">
+          <input type="checkbox" id="consentCheckbox" onchange="updateConsentButton()">
+          <span>我已阅读并同意用户条款与隐私说明。</span>
+        </label>
+      </div>
+      <div class="preview-footer">
+        <span class="footer-left">同意后才会开始扫描桌面。</span>
+        <div class="footer-right">
+          <button class="btn btn-primary" id="acceptConsentBtn" onclick="acceptConsentAndStart()" disabled>同意并开始使用</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 桌面网格校准弹窗 -->
+  <div class="overlay" id="gridCalibrationOverlay" style="z-index:480;">
+    <div class="consent-modal" style="max-width:500px;">
+      <div class="preview-header">
+        <h2>桌面网格校准</h2>
+        <p>请输入你的桌面实际能容纳的行列数，以确保预览和整理效果一致。</p>
+      </div>
+      <div class="consent-body" style="padding:24px;">
+        <p style="color:#94a3b8;margin-bottom:16px;">不确定？右键桌面空白处，选择"查看" → 观察图标大小设置，或数一下从左到右、从上到下最多能放几个图标。</p>
+        <div style="display:flex;gap:16px;margin-bottom:16px;">
+          <div style="flex:1;">
+            <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:14px;">每行最多放几个图标</label>
+            <input type="number" id="gridColsInput" min="1" max="50" value="20"
+              style="width:100%;background:#1e293b;border:1px solid #334155;border-radius:6px;padding:10px;color:#e2e8f0;font-size:16px;">
+          </div>
+          <div style="flex:1;">
+            <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:14px;">每列最多放几个图标</label>
+            <input type="number" id="gridRowsInput" min="1" max="50" value="10"
+              style="width:100%;background:#1e293b;border:1px solid #334155;border-radius:6px;padding:10px;color:#e2e8f0;font-size:16px;">
+          </div>
+        </div>
+        <button class="btn btn-ghost" onclick="autoDetectGrid()" style="width:100%;margin-bottom:8px;">自动检测（参考值）</button>
+        <p style="color:#64748b;font-size:12px;">自动检测基于当前图标分布估算，可能不准确，建议手动调整。</p>
+      </div>
+      <div class="preview-footer">
+        <span class="footer-left">校准后可在设置中重新调整</span>
+        <div class="footer-right">
+          <button class="btn btn-primary" onclick="saveGridCalibration()">确认</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新手教程选择弹窗 -->
+  <div class="overlay" id="onboardingChoiceOverlay" style="z-index:450;">
+    <div class="onboarding-choice-modal">
+      <div class="preview-header">
+        <h2>快速了解桌面整理</h2>
+        <p>桌面已经扫描完成。你可以用 1 分钟了解搜索、分类、拖拽、预览整理和自定义整理。</p>
+      </div>
+      <div class="preview-footer">
+        <span class="footer-left">教程可跳过，也可以之后从"帮助"重新打开。</span>
+        <div class="footer-right">
+          <button class="btn btn-ghost" onclick="skipOnboardingChoice()">跳过，直接使用</button>
+          <button class="btn btn-primary" onclick="startOnboardingTutorial()">开始教程</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新手教程浮层 -->
+  <div class="tutorial-backdrop" id="tutorialBackdrop">
+    <div class="tutorial-spotlight" id="tutorialSpotlight"></div>
+    <div class="tutorial-card" id="tutorialCard">
+      <h3 id="tutorialTitle"></h3>
+      <p id="tutorialText"></p>
+      <div class="tutorial-progress" id="tutorialProgress"></div>
+      <div class="tutorial-actions">
+        <button class="btn btn-ghost" onclick="skipTutorial()">跳过</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" id="tutorialPrevBtn" onclick="prevTutorialStep()">上一步</button>
+          <button class="btn btn-primary" id="tutorialNextBtn" onclick="nextTutorialStep()">下一步</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 整理预览弹窗 -->
+  <div class="overlay" id="previewOverlay" style="z-index:300;">
+    <div class="preview-modal" style="width: 90vw; max-width: 1400px; height: 90vh;">
+      <div class="preview-header">
+        <h2>桌面布局预览</h2>
+        <p>拖拽图标可以在分区之间微调，确认后将整理桌面</p>
+      </div>
+      <div class="preview-body" id="previewBody"></div>
+      <div class="preview-footer">
+        <span class="footer-left" id="previewStats"></span>
+        <div class="footer-right">
+          <button class="btn btn-ghost" id="layoutDirectionBtn" onclick="togglePreviewDirection()">切换为横向排列</button>
+          <button class="btn btn-ghost" onclick="savePreviewAsScheme()">保存为方案</button>
+          <button class="btn btn-danger" onclick="closePreview()">取消</button>
+          <button class="btn btn-success" id="confirmBtn" onclick="confirmOrganize()">确认整理</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 布局方案弹窗 -->
+  <div class="overlay" id="layoutOverlay" style="z-index:320;">
+    <div class="preview-modal" style="width:80vw;max-width:1100px;height:80vh;">
+      <div class="preview-header">
+        <h2>布局方案</h2>
+        <p>保存常用布局，或恢复整理前自动快照</p>
+      </div>
+      <div class="preview-body" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;overflow:auto;">
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3 style="font-size:16px;color:#f8fafc;margin:0;">手动方案</h3>
+            <button class="btn btn-ghost" id="schemeManageBtn" onclick="toggleSelectMode('scheme')">管理</button>
+          </div>
+          <div id="schemeToolbar"></div>
+          <div id="layoutSchemeList"></div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3 style="font-size:16px;color:#f8fafc;margin:0;">自动快照</h3>
+            <button class="btn btn-ghost" id="snapshotManageBtn" onclick="toggleSelectMode('snapshot')">管理</button>
+          </div>
+          <div id="snapshotToolbar"></div>
+          <div id="layoutSnapshotList"></div>
+        </div>
+      </div>
+      <div class="preview-footer">
+        <span class="footer-left">恢复布局前会自动保存当前桌面快照</span>
+        <div class="footer-right">
+          <button class="btn btn-ghost" onclick="createManualSnapshot()">保存当前桌面快照</button>
+          <button class="btn btn-danger" onclick="closeLayoutManager()">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 布局方案预览弹窗 -->
+  <div class="overlay" id="layoutPreviewOverlay" style="z-index:330;">
+    <div class="preview-modal" style="width:80vw;max-width:1100px;height:80vh;">
+      <div class="preview-header">
+        <h2 id="layoutPreviewTitle">布局预览</h2>
+        <p id="layoutPreviewMeta">查看保存的图标布局示意图</p>
+      </div>
+      <div class="preview-body" id="layoutPreviewCanvas" style="overflow:auto;padding:16px;"></div>
+      <div class="preview-footer">
+        <span class="footer-left">预览根据保存的图标坐标绘制，不保存真实桌面截图</span>
+        <div class="footer-right">
+          <button class="btn btn-danger" onclick="closeLayoutPreview()">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 自定义整理弹窗 -->
+  <div class="overlay" id="customOverlay" style="display:none;">
+    <div style="width:95vw;max-width:1600px;height:85vh;background:#0f172a;border:1px solid #334155;border-radius:16px;display:flex;flex-direction:column;overflow:hidden;">
+      <!-- 头部 -->
+      <div style="padding:16px 24px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <h2 style="color:#f1f5f9;font-size:18px;margin:0;">自定义桌面布局</h2>
+          <p style="color:#64748b;font-size:12px;margin:4px 0 0;">创建分区 → 拖入文件 → 预览效果 → 确认应用</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="closeCustom()">取消</button>
+          <button class="btn btn-ghost" onclick="saveCustomAsScheme()">保存为方案</button>
+          <button class="btn btn-primary" onclick="applyCustomLayout()">确认应用</button>
+        </div>
+      </div>
+      <!-- 主体：左文件列表 + 右分区 -->
+      <div style="flex:1;display:flex;overflow:hidden;">
+        <!-- 左：文件列表 -->
+        <div style="width:50%;border-right:1px solid #334155;display:flex;flex-direction:column;overflow:hidden;">
+          <div style="padding:12px 16px;border-bottom:1px solid #1e293b;">
+            <input id="customSearch" type="text" placeholder="搜索文件..." style="width:100%;background:#1e293b;border:1px solid #334155;border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:12px;outline:none;">
+          </div>
+          <div id="customFileList" style="flex:1;overflow-y:auto;padding:8px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;"></div>
+        </div>
+        <!-- 右：分区管理 -->
+        <div style="width:50%;display:flex;flex-direction:column;overflow:hidden;">
+          <div style="padding:8px 16px;border-bottom:1px solid #1e293b;display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-primary" onclick="addCustomZone()" style="font-size:11px;padding:4px 10px;">+ 新建分区</button>
+            <span id="customZoneHint" style="color:#64748b;font-size:11px;">把左侧文件拖到右侧分区中</span>
+          </div>
+          <div id="customZones" style="flex:1;overflow-y:auto;padding:8px;"></div>
+        </div>
+      </div>
+      <!-- 底部：布局预览 -->
+      <div id="customPreview" style="border-top:1px solid #334155;padding:8px 16px;max-height:180px;overflow-y:auto;background:#1a2332;"></div>
+    </div>
+  </div>
+
+  <script src="js/state.js"></script>
+  <script src="js/init.js"></script>
+  <script src="js/scan.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/view.js"></script>
+  <script src="js/drag.js"></script>
+  <script src="js/context-menu.js"></script>
+  <script src="js/actions.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/layouts.js"></script>
+  <script src="js/organize-flow.js"></script>
+  <script src="js/custom-layout.js"></script>
+</body>
+</html>
