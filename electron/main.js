@@ -721,8 +721,14 @@ function registerIPC() {
     const classified = classifyAll(items);
     const fs = require('fs');
     const logFile = path.join(require('os').homedir(), '.desktop-organizer', 'scan-debug.log');
-    fs.writeFileSync(logFile, `[${new Date().toISOString()}] scan-desktop called, ${Object.values(classified).flat().length} items\n`, 'utf8');
-
+    const iconDiag = items._iconDiagnostics || {};
+    const fileCount = items.filter(item => !item.isDirectory).length;
+    const iconCount = items.filter(item => typeof item.icon === 'string' && item.icon.startsWith('data:image/')).length;
+    fs.writeFileSync(logFile, `[${new Date().toISOString()}] scan-desktop called, ${Object.values(classified).flat().length} items, ${fileCount} files, ${iconCount} icons` + '\n', 'utf8');
+    fs.appendFileSync(logFile, `icon extraction: requested=${iconDiag.requested || 0}, extracted=${iconDiag.extracted || 0}, batches=${iconDiag.batches || 0}, failed=${iconDiag.failedBatches || 0}` + '\n', 'utf8');
+    if (Array.isArray(iconDiag.errors) && iconDiag.errors.length > 0) {
+      fs.appendFileSync(logFile, `icon extraction errors: ${iconDiag.errors.slice(0, 3).join(' | ')}` + '\n', 'utf8');
+    }
     // 优先用 IFolderView2 读取真实像素位置，失败则回退 Registry
     let positionMap = {};
     let desktopGrid = null;

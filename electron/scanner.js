@@ -105,27 +105,36 @@ function readShortcut(lnkPath) {
  * 批量提取文件图标（Shell API，比 Electron nativeImage 更可靠）
  */
 function extractIconsBatch(filePaths) {
-  if (filePaths.length === 0) return {};
-  try {
-    const { execFileSync } = require('child_process');
-    const psScript = getResourcePath('electron', 'extract-icons.ps1');
-    // 用正斜杠避免 PowerShell 反斜杠转义问题
-    const jsonPaths = JSON.stringify(filePaths.map(p => p.replace(/\\/g, '/')));
-    const out = execFileSync('powershell.exe', [
-      '-STA', '-ExecutionPolicy', 'Bypass',
-      '-File', psScript,
-      '-Paths', jsonPaths,
-    ], { encoding: 'utf8', timeout: 30000, windowsHide: true });
-    // 把返回的 key 也转回反斜杠
-    const result = JSON.parse(out.trim());
-    const mapped = {};
-    for (const [k, v] of Object.entries(result)) {
-      mapped[k.replace(/\//g, '\\')] = v;
+  const diagnostics = { requested: filePaths.length, batches: 0, failedBatches: 0, extracted: 0, errors: [] };
+  if (filePaths.length === 0) return { icons: {}, diagnostics };
+  const { execFileSync } = require('child_process');
+  const psScript = getResourcePath('electron', 'extract-icons.ps1');
+  const mapped = {};
+  const batchSize = 25;
+
+  for (let i = 0; i < filePaths.length; i += batchSize) {
+    const batch = filePaths.slice(i, i + batchSize);
+    diagnostics.batches++;
+    try {
+      const jsonPaths = JSON.stringify(batch.map(p => p.replace(/\\/g, '/')));
+      const out = execFileSync('powershell.exe', [
+        '-STA', '-ExecutionPolicy', 'Bypass',
+        '-File', psScript,
+        '-Paths', jsonPaths,
+      ], { encoding: 'utf8', timeout: 30000, windowsHide: true, maxBuffer: 10 * 1024 * 1024 });
+      const result = JSON.parse(out.trim() || '{}');
+      for (const [k, v] of Object.entries(result)) {
+        mapped[k.replace(/\//g, '\\')] = v;
+      }
+    } catch (err) {
+      diagnostics.failedBatches++;
+      diagnostics.errors.push(err.message);
+      console.warn('提取桌面图标失败:', err.message);
     }
-    return mapped;
-  } catch {
-    return {};
   }
+
+  diagnostics.extracted = Object.keys(mapped).length;
+  return { icons: mapped, diagnostics };
 }
 
 /**
@@ -206,11 +215,15 @@ async function scanDesktop() {
 
   // 批量提取图标（Shell API，比 Electron nativeImage 更可靠）
   const filePaths = items.filter(i => !i.isDirectory).map(i => i.path);
-  const iconMap = extractIconsBatch(filePaths);
+  const iconResult = extractIconsBatch(filePaths);
+  const iconMap = iconResult.icons || {};
   for (const item of items) {
     item.icon = iconMap[item.path] || null;
   }
-
+  Object.defineProperty(items, '_iconDiagnostics', {
+    value: iconResult.diagnostics,
+    enumerable: false,
+  });
   return items;
 }
 

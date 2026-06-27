@@ -22,9 +22,9 @@
 
     function getLayoutPreviewData(record) {
       const preview = record?.preview || {};
-      const items = Array.isArray(preview.items)
-        ? preview.items
-        : (Array.isArray(record?.layoutData?.items) ? record.layoutData.items : []);
+      const layoutItems = Array.isArray(record?.layoutData?.items) ? record.layoutData.items : [];
+      const previewItems = Array.isArray(preview.items) ? preview.items : [];
+      const items = layoutItems.length > 0 ? layoutItems : previewItems;
       return {
         grid: preview.grid || record?.grid || null,
         items: items.filter(Boolean),
