@@ -54,6 +54,14 @@ contextBridge.exposeInMainWorld('organizer', {
   deleteLayouts: (type, ids) => ipcRenderer.invoke('delete-layouts', type, ids),
   restoreLayout: (payload) => ipcRenderer.invoke('restore-layout', payload),
 
+  // 自动更新
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  onUpdateStatus: (callback) => {
+    ipcRenderer.on('update-status', (event, status) => callback(status));
+  },
+
   // 监听主进程消息
   onTriggerRescan: (callback) => {
     ipcRenderer.on('trigger-rescan', () => callback());

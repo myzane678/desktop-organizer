@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, globalShortcut, Menu } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -9,6 +10,25 @@ const { createTray, destroyTray } = require('./tray');
 const { generatePlan, packItems } = require('./organizer');
 
 let mainWindow = null;
+let updateStatus = { status: 'idle' };
+
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = false;
+
+function sendUpdateStatus(payload) {
+  updateStatus = { ...updateStatus, ...payload };
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-status', updateStatus);
+  }
+  return updateStatus;
+}
+
+autoUpdater.on('checking-for-update', () => sendUpdateStatus({ status: 'checking' }));
+autoUpdater.on('update-available', info => sendUpdateStatus({ status: 'available', info }));
+autoUpdater.on('update-not-available', info => sendUpdateStatus({ status: 'not-available', info }));
+autoUpdater.on('download-progress', progress => sendUpdateStatus({ status: 'downloading', progress }));
+autoUpdater.on('update-downloaded', info => sendUpdateStatus({ status: 'downloaded', info }));
+autoUpdater.on('error', err => sendUpdateStatus({ status: 'error', message: err.message || String(err) }));
 
 const CONFIG_DIR = path.join(os.homedir(), '.desktop-organizer');
 const CONSENT_FILE = path.join(CONFIG_DIR, 'consent.json');
@@ -714,6 +734,27 @@ function registerIPC() {
   ipcMain.handle('get-grid-config-status', () => getGridConfigStatus());
 
   ipcMain.handle('save-grid-config', (e, { cols, rows }) => saveGridConfig(cols, rows));
+
+  ipcMain.handle('check-for-updates', async () => {
+    if (!app.isPackaged) {
+      return sendUpdateStatus({ status: 'dev-mode', message: '开发模式不检查更新' });
+    }
+    await autoUpdater.checkForUpdates();
+    return updateStatus;
+  });
+
+  ipcMain.handle('download-update', async () => {
+    if (!app.isPackaged) {
+      return sendUpdateStatus({ status: 'dev-mode', message: '开发模式不下载更新' });
+    }
+    await autoUpdater.downloadUpdate();
+    return updateStatus;
+  });
+
+  ipcMain.handle('install-update', () => {
+    app.isQuitting = true;
+    autoUpdater.quitAndInstall(false, true);
+  });
 
   ipcMain.handle('scan-desktop', async () => {
     requireConsent();

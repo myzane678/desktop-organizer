@@ -16,7 +16,76 @@
       if (window.organizer?.onTriggerRescan) {
         window.organizer.onTriggerRescan(() => rescan());
       }
+
+      if (window.organizer?.onUpdateStatus) {
+        window.organizer.onUpdateStatus(handleUpdateStatus);
+      }
     });
+
+    let lastUpdateProgressShown = 0;
+
+    async function checkForAppUpdates() {
+      if (!window.organizer?.checkForUpdates) {
+        showToast('当前版本不支持自动更新');
+        return;
+      }
+      try {
+        lastUpdateProgressShown = 0;
+        showToast('正在检查更新...');
+        await window.organizer.checkForUpdates();
+      } catch (err) {
+        showToast('检查更新失败: ' + err.message);
+      }
+    }
+
+    async function handleUpdateStatus(status) {
+      if (!status || !status.status) return;
+      if (status.status === 'dev-mode') {
+        showToast(status.message || '开发模式不检查更新');
+        return;
+      }
+      if (status.status === 'checking') {
+        showToast('正在检查更新...');
+        return;
+      }
+      if (status.status === 'not-available') {
+        showToast('当前已是最新版本');
+        return;
+      }
+      if (status.status === 'available') {
+        const version = status.info?.version ? ` ${status.info.version}` : '';
+        if (confirm(`发现新版本${version}，是否现在下载？`)) {
+          try {
+            showToast('开始下载更新...');
+            await window.organizer.downloadUpdate();
+          } catch (err) {
+            showToast('下载更新失败: ' + err.message);
+          }
+        } else {
+          showToast('已取消下载更新');
+        }
+        return;
+      }
+      if (status.status === 'downloading') {
+        const percent = Math.floor(status.progress?.percent || 0);
+        if (percent >= 100 || percent - lastUpdateProgressShown >= 20) {
+          lastUpdateProgressShown = percent;
+          showToast(`正在下载更新 ${percent}%`);
+        }
+        return;
+      }
+      if (status.status === 'downloaded') {
+        if (confirm('更新已下载，是否立即重启并安装？')) {
+          await window.organizer.installUpdate();
+        } else {
+          showToast('已暂不安装更新');
+        }
+        return;
+      }
+      if (status.status === 'error') {
+        showToast('自动更新失败: ' + (status.message || '未知错误'));
+      }
+    }
 
     async function bootstrapApp() {
       try {

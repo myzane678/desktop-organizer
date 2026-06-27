@@ -1,6 +1,6 @@
 {
   "name": "desktop-organizer",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Windows 桌面整理工具 - 按功能自动分类、预览并重排桌面图标",
   "main": "electron/main.js",
   "scripts": {
@@ -40,10 +40,21 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "桌面整理"
+      "shortcutName": "桌面整理",
+      "artifactName": "Desktop-Organizer-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Desktop-Organizer-Portable-${version}.${ext}"
     },
     "asarUnpack": [
       "electron/*.ps1"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "myzane678",
+        "repo": "desktop-organizer"
+      }
     ]
   },
   "devDependencies": {
@@ -51,6 +62,7 @@
     "electron-builder": "^26.15.3"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "windows-shortcuts": "^0.1.6"
   }
 }

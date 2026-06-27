@@ -32,7 +32,7 @@ https://github.com/myzane678/desktop-organizer/releases
 推荐普通用户下载 NSIS 安装包：
 
 ```text
-Desktop-Organizer-Setup-1.0.4.exe
+Desktop-Organizer-Setup-1.0.5.exe
 ```
 
 安装后会自动创建：
@@ -92,6 +92,13 @@ npm run verify:classifier
 
 ## 更新日志
 
+### v1.0.5
+
+- 新增手动“检查更新”入口，支持从 GitHub Release 检查新版本。
+- 支持发现新版本后确认下载、显示下载进度，并在下载完成后提示重启安装。
+- 打包配置新增 GitHub 发布源，自动更新会读取 Release 中的 `latest.yml`。
+- 安装包和 portable 产物改为稳定英文文件名，方便发布和更新清单匹配。
+
 ### v1.0.4
 
 - 自定义桌面布局支持勾选多个图标批量移入/移出分区。
@@ -120,7 +127,7 @@ npm run verify:classifier
 
 ## 发布状态
 
-当前版本已发布 Windows 安装包、portable 免安装版和源码包。普通用户推荐下载 `Desktop-Organizer-Setup-1.0.4.exe` 安装包。
+当前版本已发布 Windows 安装包、portable 免安装版和源码包。普通用户推荐下载 `Desktop-Organizer-Setup-1.0.5.exe` 安装包。
 
 ## License
 
