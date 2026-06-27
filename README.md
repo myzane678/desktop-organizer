@@ -32,7 +32,7 @@ https://github.com/myzane678/desktop-organizer/releases
 推荐普通用户下载 NSIS 安装包：
 
 ```text
-Desktop-Organizer-Setup-1.0.1.exe
+Desktop-Organizer-Setup-1.0.2.exe
 ```
 
 安装后会自动创建：
@@ -92,6 +92,11 @@ npm run verify:classifier
 
 ## 更新日志
 
+### v1.0.2
+
+- 修复桌面图标数量接近网格上限时，布局预览因分类分块溢出导致图标重叠的问题。
+- 移除竖向预览中无墙分区的尾列下移偏移，让 20×8 等满桌面网格优先紧凑使用空位。
+
 ### v1.0.1
 
 - 修复安装版无法读取真实桌面图标位置的问题，避免整理时回退到错误网格导致图标重合。
@@ -100,7 +105,7 @@ npm run verify:classifier
 
 ## 发布状态
 
-当前版本已发布 Windows 安装包、portable 免安装版和源码包。普通用户推荐下载 `Desktop-Organizer-Setup-1.0.1.exe` 安装包。
+当前版本已发布 Windows 安装包、portable 免安装版和源码包。普通用户推荐下载 `Desktop-Organizer-Setup-1.0.2.exe` 安装包。
 
 ## License
 

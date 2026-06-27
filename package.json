@@ -1,6 +1,6 @@
 {
   "name": "desktop-organizer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Windows 桌面整理工具 - 按功能自动分类、预览并重排桌面图标",
   "main": "electron/main.js",
   "scripts": {

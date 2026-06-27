@@ -415,6 +415,37 @@
         const cols = gridCols;
         const heights = cats.map(([, items]) => Math.max(1, Math.ceil(items.length / cols)));
         const totalHeight = heights.reduce((s, h) => s + h, 0);
+        if (totalHeight > totalRows) {
+          let maxRow = 0;
+          let index = 0;
+          for (let i = 0; i < N; i++) {
+            const [cat, items] = cats[i];
+            layout[cat] = items.map(item => {
+              const r = Math.floor(index / cols);
+              const localCol = index % cols;
+              index++;
+              maxRow = Math.max(maxRow, r);
+              const laid = {
+                ...item,
+                gridX: localCol,
+                gridY: r,
+                hasPosition: true,
+                category: cat,
+                originalCategory: item.originalCategory || item.category || cat,
+              };
+              if (options.spacingX && options.spacingY) {
+                laid.pixelX = localCol * options.spacingX + 21;
+                laid.pixelY = r * options.spacingY + 2;
+              }
+              return laid;
+            });
+          }
+          finalRows = Math.max(totalRows, maxRow + 1);
+          layout._gridCols = gridCols;
+          layout._gridRows = finalRows;
+          layout._direction = direction;
+          return { layout, cats };
+        }
         const surplus = totalRows - totalHeight;
         const walls = Array(Math.max(0, N - 1)).fill(0);
         let topPadding = 0;
@@ -468,6 +499,36 @@
         const rows = totalRows;
         const widths = cats.map(([, items]) => Math.max(1, Math.ceil(items.length / rows)));
         const totalWidth = widths.reduce((s, w) => s + w, 0);
+        if (totalWidth > gridCols) {
+          let maxCol = 0;
+          let index = 0;
+          for (let i = 0; i < N; i++) {
+            const [cat, items] = cats[i];
+            layout[cat] = items.map(item => {
+              const c = Math.floor(index / rows);
+              const r = index % rows;
+              index++;
+              maxCol = Math.max(maxCol, c);
+              const laid = {
+                ...item,
+                gridX: c,
+                gridY: r,
+                hasPosition: true,
+                category: cat,
+                originalCategory: item.originalCategory || item.category || cat,
+              };
+              if (options.spacingX && options.spacingY) {
+                laid.pixelX = c * options.spacingX + 21;
+                laid.pixelY = r * options.spacingY + 2;
+              }
+              return laid;
+            });
+          }
+          layout._gridCols = Math.max(gridCols, maxCol + 1);
+          layout._gridRows = rows;
+          layout._direction = direction;
+          return { layout, cats };
+        }
         const surplus = gridCols - totalWidth;
         const walls = Array(Math.max(0, N - 1)).fill(0);
         let leftPadding = 0;
@@ -496,15 +557,9 @@
         for (let i = 0; i < N; i++) {
           const [cat, items] = cats[i];
           const sc = startCols[i];
-          const width = widths[i];
-          const hasWallAfter = i < N - 1 && walls[i] === 1;
-          const gapRows = (!hasWallAfter && width > 1) ? Math.min(3, Math.floor(rows / 3)) : 0;
-
           layout[cat] = items.map((item, j) => {
             const localCol = Math.floor(j / rows);
-            const localRow = j % rows;
-            const isLastCol = localCol === width - 1;
-            const r = isLastCol && gapRows > 0 ? localRow + gapRows : localRow;
+            const r = j % rows;
             const c = sc + localCol;
             maxRow = Math.max(maxRow, r);
             const laid = {
