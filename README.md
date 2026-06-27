@@ -32,7 +32,7 @@ https://github.com/myzane678/desktop-organizer/releases
 推荐普通用户下载 NSIS 安装包：
 
 ```text
-Desktop-Organizer-Setup-1.0.2.exe
+Desktop-Organizer-Setup-1.0.3.exe
 ```
 
 安装后会自动创建：
@@ -92,6 +92,13 @@ npm run verify:classifier
 
 ## 更新日志
 
+### v1.0.3
+
+- 修复部分用户机器上“桌面”视图无法显示真实文件图标、全部退回默认文档图标的问题。
+- 图标提取改为分批执行，单批失败不再导致全部图标丢失，并增加输出缓冲容量。
+- 扫描日志新增图标提取诊断，便于现场排查：`%USERPROFILE%\.desktop-organizer\scan-debug.log`。
+- 修复布局方案/快照预览读取旧预览数据时无法匹配真实图标的问题。
+
 ### v1.0.2
 
 - 修复桌面图标数量接近网格上限时，布局预览因分类分块溢出导致图标重叠的问题。
@@ -105,7 +112,7 @@ npm run verify:classifier
 
 ## 发布状态
 
-当前版本已发布 Windows 安装包、portable 免安装版和源码包。普通用户推荐下载 `Desktop-Organizer-Setup-1.0.2.exe` 安装包。
+当前版本已发布 Windows 安装包、portable 免安装版和源码包。普通用户推荐下载 `Desktop-Organizer-Setup-1.0.3.exe` 安装包。
 
 ## License
 
