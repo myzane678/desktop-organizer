@@ -1,6 +1,9 @@
     // ========== 自定义整理 ==========
     let customZones = [];
     let customUnassigned = [];
+    let customSelectedUnassigned = new Set();
+    let customSelectedByZone = {};
+    let customMoveTargetZoneIdx = 0;
     const zoneColors = ['#8b5cf6','#10b981','#f59e0b','#3b82f6','#ec4899','#6366f1','#ef4444','#14b8a6','#f97316','#06b6d4'];
 
     function openCustom() {
@@ -33,6 +36,8 @@
 
       // 从未分配列表中移除已分配的文件
       customUnassigned = customUnassigned.filter(i => !assignedIds.has(i.fullName));
+      customSelectedUnassigned = new Set();
+      customSelectedByZone = {};
 
       renderCustomFiles();
       renderCustomZones();
@@ -49,43 +54,143 @@
       document.getElementById('customOverlay').style.display = 'none';
     }
 
+    function getCustomSearchFilter() {
+      return document.getElementById('customSearch')?.value.trim().toLowerCase() || '';
+    }
+
+    function refreshCustomLayout() {
+      if (customZones.length === 0) customMoveTargetZoneIdx = 0;
+      else if (customMoveTargetZoneIdx >= customZones.length) customMoveTargetZoneIdx = customZones.length - 1;
+      else if (customMoveTargetZoneIdx < 0) customMoveTargetZoneIdx = 0;
+      renderCustomFiles(getCustomSearchFilter());
+      renderCustomZones();
+      renderCustomPreview();
+    }
+
+    function getCustomZoneSelection(zoneIdx) {
+      if (!customSelectedByZone[zoneIdx]) customSelectedByZone[zoneIdx] = new Set();
+      return customSelectedByZone[zoneIdx];
+    }
+
+    function clearCustomSelectionForItems(items) {
+      const names = new Set(items.map(i => i.fullName));
+      for (const name of names) customSelectedUnassigned.delete(name);
+      for (const selected of Object.values(customSelectedByZone)) {
+        for (const name of names) selected.delete(name);
+      }
+    }
+
+    function toggleCustomUnassignedSelection(fullName, checked) {
+      if (checked) customSelectedUnassigned.add(fullName);
+      else customSelectedUnassigned.delete(fullName);
+      renderCustomFiles(getCustomSearchFilter());
+    }
+
+    function toggleCustomZoneSelection(zoneIdx, fullName, checked) {
+      const selected = getCustomZoneSelection(zoneIdx);
+      if (checked) selected.add(fullName);
+      else selected.delete(fullName);
+      renderCustomZones();
+    }
+
+    function moveSelectedUnassignedToZone(zoneIdx) {
+      const zone = customZones[zoneIdx];
+      if (!zone) { showToast('请选择目标分区'); return; }
+      const selected = customSelectedUnassigned;
+      if (selected.size === 0) { showToast('请先勾选要移入的图标'); return; }
+
+      const moved = customUnassigned.filter(i => selected.has(i.fullName));
+      if (moved.length === 0) { showToast('没有可移入的图标'); return; }
+      customUnassigned = customUnassigned.filter(i => !selected.has(i.fullName));
+      zone.items.push(...moved);
+      clearCustomSelectionForItems(moved);
+      showToast(`已移入 ${moved.length} 个图标到「${zone.name}」`);
+      refreshCustomLayout();
+    }
+
+    function removeSelectedFromZone(zoneIdx) {
+      const zone = customZones[zoneIdx];
+      if (!zone) return;
+      const selected = getCustomZoneSelection(zoneIdx);
+      if (selected.size === 0) { showToast('请先勾选要移出的图标'); return; }
+
+      const moved = zone.items.filter(i => selected.has(i.fullName));
+      if (moved.length === 0) { showToast('没有可移出的图标'); return; }
+      zone.items = zone.items.filter(i => !selected.has(i.fullName));
+      customUnassigned.push(...moved);
+      clearCustomSelectionForItems(moved);
+      showToast(`已从「${zone.name}」移出 ${moved.length} 个图标`);
+      refreshCustomLayout();
+    }
+
+    function moveCustomZone(zoneIdx, direction) {
+      const targetIdx = zoneIdx + direction;
+      if (targetIdx < 0 || targetIdx >= customZones.length) return;
+      [customZones[zoneIdx], customZones[targetIdx]] = [customZones[targetIdx], customZones[zoneIdx]];
+      const currentSelected = customSelectedByZone[zoneIdx];
+      customSelectedByZone[zoneIdx] = customSelectedByZone[targetIdx] || new Set();
+      customSelectedByZone[targetIdx] = currentSelected || new Set();
+      customMoveTargetZoneIdx = targetIdx;
+      renderCustomZones();
+      renderCustomPreview();
+    }
+
+    function getCustomZoneOptions(selectedIdx = 0) {
+      return customZones.map((zone, zi) => `<option value="${zi}" ${zi === selectedIdx ? 'selected' : ''}>${escapeHTML(zone.name)}</option>`).join('');
+    }
+
     function renderCustomFiles(filter = '') {
       const el = document.getElementById('customFileList');
       const items = filter
         ? customUnassigned.filter(i => i.name.toLowerCase().includes(filter) || i.fullName.toLowerCase().includes(filter))
         : customUnassigned;
+      const selectedCount = customSelectedUnassigned.size;
+      const toolbar = customUnassigned.length > 0 ? `<div style="width:100%;display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px;background:#111827;border:1px solid #334155;border-radius:6px;">
+        <span style="color:#94a3b8;font-size:11px;white-space:nowrap;">已选择 ${selectedCount} 个</span>
+        <select id="customMoveTarget" onchange="customMoveTargetZoneIdx = parseInt(this.value)" style="background:#0f172a;border:1px solid #334155;border-radius:4px;color:#e2e8f0;font-size:11px;padding:3px 6px;min-width:120px;outline:none;" ${customZones.length === 0 ? 'disabled' : ''}>${getCustomZoneOptions(customMoveTargetZoneIdx)}</select>
+        <button onclick="customMoveTargetZoneIdx = parseInt(document.getElementById('customMoveTarget').value);moveSelectedUnassignedToZone(customMoveTargetZoneIdx)" style="background:#3b82f6;border:1px solid #60a5fa;color:white;cursor:pointer;font-size:11px;padding:3px 8px;border-radius:4px;" ${selectedCount === 0 || customZones.length === 0 ? 'disabled' : ''}>移入分区</button>
+      </div>` : '';
 
-      el.innerHTML = items.map(item => {
+      const itemsHtml = items.map(item => {
+        const checked = customSelectedUnassigned.has(item.fullName) ? 'checked' : '';
         const iconImg = item.icon
           ? `<img src="${item.icon}" style="width:28px;height:28px;object-fit:contain;">`
           : `<span style="font-size:18px;">${item.isDirectory ? '📁' : '📄'}</span>`;
         return `<div draggable="true" data-name="${escapeAttr(item.fullName)}"
           ondragstart="customDragStart(event)"
           ondragend="customDragEnd(event)"
-          style="width:80px;padding:6px;border-radius:6px;background:#1e293b;border:1px solid #334155;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:grab;font-size:9px;color:#cbd5e1;text-align:center;"
+          style="width:80px;padding:6px;border-radius:6px;background:#1e293b;border:1px solid #334155;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:grab;font-size:9px;color:#cbd5e1;text-align:center;position:relative;"
           title="${escapeAttr(item.fullName)}">
+          <input type="checkbox" ${checked} onclick="event.stopPropagation()" onchange="toggleCustomUnassignedSelection(this.closest('[data-name]').dataset.name,this.checked)"
+            style="position:absolute;top:3px;left:3px;width:13px;height:13px;accent-color:#3b82f6;cursor:pointer;">
           ${iconImg}
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:72px;">${escapeHTML(item.name.length > 8 ? item.name.slice(0,7) + '…' : item.name)}</span>
         </div>`;
       }).join('');
 
+      el.innerHTML = toolbar + itemsHtml;
+
       if (items.length === 0) {
-        el.innerHTML = '<div style="color:#64748b;font-size:12px;padding:20px;text-align:center;width:100%;">所有文件已分配到分区中</div>';
+        el.innerHTML = toolbar + '<div style="color:#64748b;font-size:12px;padding:20px;text-align:center;width:100%;">所有文件已分配到分区中</div>';
       }
     }
 
     function renderCustomZones() {
       const el = document.getElementById('customZones');
       el.innerHTML = customZones.map((zone, zi) => {
+        const selectedCount = getCustomZoneSelection(zi).size;
         const itemsHtml = zone.items.map(item => {
+          const checked = getCustomZoneSelection(zi).has(item.fullName) ? 'checked' : '';
           const iconImg = item.icon
             ? `<img src="${item.icon}" style="width:22px;height:22px;object-fit:contain;">`
             : `<span style="font-size:14px;">${item.isDirectory ? '📁' : '📄'}</span>`;
           return `<div draggable="true" data-name="${escapeAttr(item.fullName)}" data-zone="${zi}"
             ondragstart="customDragFromZone(event)"
             ondragend="customDragEnd(event)"
-            style="width:60px;padding:3px;border-radius:4px;background:${zone.color}15;border:1px solid ${zone.color}30;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:grab;font-size:8px;color:#cbd5e1;text-align:center;"
+            style="width:60px;padding:3px;border-radius:4px;background:${zone.color}15;border:1px solid ${zone.color}30;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:grab;font-size:8px;color:#cbd5e1;text-align:center;position:relative;"
             title="${escapeAttr(item.fullName)}">
+            <input type="checkbox" ${checked} onclick="event.stopPropagation()" onchange="toggleCustomZoneSelection(${zi},this.closest('[data-name]').dataset.name,this.checked)"
+              style="position:absolute;top:2px;left:2px;width:12px;height:12px;accent-color:${zone.color};cursor:pointer;">
             ${iconImg}
             <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:56px;">${escapeHTML(item.name.length > 6 ? item.name.slice(0,5) + '…' : item.name)}</span>
           </div>`;
@@ -100,6 +205,9 @@
             <input value="${escapeAttr(zone.name)}" onchange="renameCustomZone(${zi},this.value)"
               style="background:transparent;border:none;color:#f1f5f9;font-size:13px;font-weight:600;outline:none;flex:1;min-width:0;">
             <span style="color:#64748b;font-size:11px;">${zone.items.length}</span>
+            <button onclick="moveCustomZone(${zi},-1)" title="上移分区" style="background:${zone.color}20;border:1px solid ${zone.color}40;color:#e2e8f0;cursor:pointer;font-size:10px;padding:2px 6px;border-radius:4px;" ${zi === 0 ? 'disabled' : ''}>↑</button>
+            <button onclick="moveCustomZone(${zi},1)" title="下移分区" style="background:${zone.color}20;border:1px solid ${zone.color}40;color:#e2e8f0;cursor:pointer;font-size:10px;padding:2px 6px;border-radius:4px;" ${zi === customZones.length - 1 ? 'disabled' : ''}>↓</button>
+            ${selectedCount > 0 ? `<button onclick="removeSelectedFromZone(${zi})" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fecaca;cursor:pointer;font-size:10px;padding:2px 6px;border-radius:4px;">移出所选 ${selectedCount}</button>` : ''}
             <div style="position:relative;display:inline-block;">
               <button onclick="toggleBatchMenu(this)" style="background:${zone.color}30;border:1px solid ${zone.color}50;color:#e2e8f0;cursor:pointer;font-size:10px;padding:2px 6px;border-radius:4px;">批量移入 ▾</button>
               <div class="batch-menu" style="display:none;background:#1e293b;border:1px solid #334155;border-radius:6px;padding:4px;z-index:9999;min-width:120px;max-height:240px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.4);">
@@ -132,47 +240,8 @@
     }
 
     function renderCustomPreview() {
-      const el = document.getElementById('customPreview');
-      const allItems = [];
-      for (const zone of customZones) {
-        for (const item of zone.items) {
-          allItems.push({ ...item, category: zone.name, color: zone.color });
-        }
-      }
-      if (allItems.length === 0) {
-        el.innerHTML = '<p style="color:#475569;font-size:11px;text-align:center;padding:8px;">拖入文件后这里会显示布局预览</p>';
-        return;
-      }
-
-      const meta = getDesktopGridMeta(currentData);
-      const gridCols = meta?.cols || 22;
-      const gridRows = meta?.rows || 10;
-      const cellH = Math.max(20, Math.floor(150 / gridRows));
-      const layout = buildBlockPreviewLayout(customZones.map(z => [z.name, z.items]), gridCols, gridRows, 'vertical').layout;
-      const cellMap = {};
-      for (const zone of customZones) {
-        const items = layout[zone.name] || [];
-        for (const item of items) cellMap[`${item.gridY},${item.gridX}`] = { item, zone };
-      }
-      let html = `<div style="display:grid;grid-template-columns:repeat(${gridCols},1fr);grid-template-rows:repeat(${gridRows},${cellH}px);gap:1px;background:#0f172a;border-radius:6px;padding:2px;">`;
-
-      for (let r = 0; r < gridRows; r++) {
-        for (let c = 0; c < gridCols; c++) {
-          const cell = cellMap[`${r},${c}`];
-          if (!cell) {
-            html += '<div></div>';
-            continue;
-          }
-          const { item, zone } = cell;
-          const iconSize = Math.min(cellH - 4, 16);
-          html += `<div style="background:${zone.color}20;border-radius:2px;display:flex;align-items:center;justify-content:center;" title="${escapeAttr(item.name)} (${zone.name})">
-            <span style="font-size:${iconSize}px;">${item.isDirectory ? '📁' : (item.ext === '.lnk' ? '🔗' : '📄')}</span>
-          </div>`;
-        }
-      }
-      html += '</div>';
-      el.innerHTML = html;
     }
+
 
     let customDragSource = null; // { zone: index or 'unassigned', name: fullName }
 
@@ -210,11 +279,10 @@
       if (!item) return;
 
       customZones[targetZoneIdx].items.push(item);
+      clearCustomSelectionForItems([item]);
       customDragSource = null;
 
-      renderCustomFiles(document.getElementById('customSearch').value.trim().toLowerCase());
-      renderCustomZones();
-      renderCustomPreview();
+      refreshCustomLayout();
     }
 
     // 从未分配列表拖到分区（通过分区 ondrop 处理）
@@ -229,11 +297,12 @@
           const item = customZones[customDragSource.zone].items.splice(
             customZones[customDragSource.zone].items.findIndex(i => i.fullName === customDragSource.name), 1
           )[0];
-          if (item) customUnassigned.push(item);
+          if (item) {
+            customUnassigned.push(item);
+            clearCustomSelectionForItems([item]);
+          }
           customDragSource = null;
-          renderCustomFiles(document.getElementById('customSearch').value.trim().toLowerCase());
-          renderCustomZones();
-          renderCustomPreview();
+          refreshCustomLayout();
         });
       }
     });
@@ -271,15 +340,30 @@
 
     function removeCustomZone(idx) {
       // 把分区里的文件放回未分配
-      for (const item of customZones[idx].items) customUnassigned.push(item);
+      const removed = customZones[idx].items;
+      for (const item of removed) customUnassigned.push(item);
       customZones.splice(idx, 1);
-      renderCustomFiles(document.getElementById('customSearch').value.trim().toLowerCase());
-      renderCustomZones();
-      renderCustomPreview();
+      clearCustomSelectionForItems(removed);
+      const nextSelected = {};
+      for (const [key, selected] of Object.entries(customSelectedByZone)) {
+        const zoneIdx = parseInt(key);
+        if (zoneIdx < idx) nextSelected[zoneIdx] = selected;
+        if (zoneIdx > idx) nextSelected[zoneIdx - 1] = selected;
+      }
+      customSelectedByZone = nextSelected;
+      refreshCustomLayout();
     }
 
     function renameCustomZone(idx, newName) {
-      customZones[idx].name = newName;
+      const name = newName.trim();
+      if (!name) {
+        showToast('分区名不能为空');
+        renderCustomZones();
+        return;
+      }
+      customZones[idx].name = name;
+      renderCustomZones();
+      renderCustomPreview();
     }
 
     function toggleBatchMenu(btn) {
@@ -333,21 +417,21 @@
         archive: (i) => ['.zip','.rar','.7z','.tar','.gz'].includes(i.ext),
       };
 
+      let moved;
       if (type === 'all') {
-        const items = [...customUnassigned];
+        moved = [...customUnassigned];
         customUnassigned = [];
-        customZones[zoneIdx].items.push(...items);
+        customZones[zoneIdx].items.push(...moved);
       } else {
         const filter = extMap[type];
         if (!filter) return;
-        const matched = customUnassigned.filter(filter);
+        moved = customUnassigned.filter(filter);
         customUnassigned = customUnassigned.filter(i => !filter(i));
-        customZones[zoneIdx].items.push(...matched);
+        customZones[zoneIdx].items.push(...moved);
       }
 
-      renderCustomFiles(document.getElementById('customSearch').value.trim().toLowerCase());
-      renderCustomZones();
-      renderCustomPreview();
+      clearCustomSelectionForItems(moved);
+      refreshCustomLayout();
     }
 
     function batchRemoveFromZone(zoneIdx, type) {
@@ -380,11 +464,10 @@
       }
 
       customUnassigned.push(...removed);
+      clearCustomSelectionForItems(removed);
       showToast(`已从「${zone.name}」移出 ${removed.length} 个文件`);
 
-      renderCustomFiles(document.getElementById('customSearch').value.trim().toLowerCase());
-      renderCustomZones();
-      renderCustomPreview();
+      refreshCustomLayout();
     }
 
     function applyCustomLayout() {

@@ -114,10 +114,22 @@
       return category !== PACK_FOLDER_TARGET && Array.isArray(currentData[PACK_FOLDER_TARGET]);
     }
 
-    // 开始在某分类新建文件夹：进入草稿态，自动展开该分类。targetCategory 默认归属源分区
+    function getPackSelectableItems(category) {
+      const packedKeys = getPackedKeys(category);
+      return (currentData[category] || []).filter(item => !packedKeys.has(getPackKey(category, item)) && !item.isPackFolder);
+    }
+
+    // 开始在某分类新建文件夹：进入草稿态，自动展开该分类。targetCategory 默认归属文件夹分区
     function startPackDraft(category) {
       capturePackOpenState();
-      previewPackDraft = { category, selection: {}, targetCategory: category };
+      previewPackDraft = {
+        category,
+        selection: {},
+        targetCategory: canRetargetToFolder(category) ? PACK_FOLDER_TARGET : category,
+      };
+      for (const item of getPackSelectableItems(category)) {
+        previewPackDraft.selection[getPackKey(category, item)] = true;
+      }
       previewPackOpen[category] = true;
       refreshPackPanel();
     }
@@ -158,16 +170,14 @@
       refreshPackPanel();
     }
 
-    // 草稿态下全选/全不选（仅针对尚未被收纳的可选项）
+    // 草稿态下全部收纳/全部保留（仅针对尚未被收纳的可选项）
     function setDraftSelectAll(checked) {
       if (!previewPackDraft) return;
       const cat = previewPackDraft.category;
-      const packedKeys = getPackedKeys(cat);
       previewPackDraft.selection = {};
       if (checked) {
-        for (const item of currentData[cat] || []) {
-          const key = getPackKey(cat, item);
-          if (!packedKeys.has(key)) previewPackDraft.selection[key] = true;
+        for (const item of getPackSelectableItems(cat)) {
+          previewPackDraft.selection[getPackKey(cat, item)] = true;
         }
       }
       refreshPackPanel();
@@ -179,7 +189,7 @@
       const cat = previewPackDraft.category;
       const memberKeys = Object.keys(previewPackDraft.selection);
       if (memberKeys.length === 0) {
-        showToast('请先勾选要收纳的图标');
+        showToast('请至少选择 1 个图标放入文件夹');
         return;
       }
       const existingNames = (previewPackPlan[cat] || []).map(f => f.name);
@@ -284,8 +294,8 @@
         if (action === 'new-folder') { startPackDraft(cat); }
         else if (action === 'draft-confirm') { confirmPackDraft(); }
         else if (action === 'draft-cancel') { cancelPackDraft(); }
-        else if (action === 'draft-select-all') { setDraftSelectAll(true); }
-        else if (action === 'draft-clear-all') { setDraftSelectAll(false); }
+        else if (action === 'draft-select-all') { setDraftSelectAll(false); }
+        else if (action === 'draft-clear-all') { setDraftSelectAll(true); }
         else if (action === 'toggle-target') { toggleFolderTarget(cat, idx); }
         else if (action === 'rename-folder') { renamePackFolder(cat, idx); }
         else if (action === 'remove-folder') { removePackFolder(cat, idx); }
@@ -330,8 +340,9 @@
         let bodyHtml;
         if (isDrafting) {
           // 草稿态：显示可选项（排除已被收纳的）+ 确认/取消
-          const selectableItems = items.filter(item => !packedKeys.has(getPackKey(cat, item)) && !item.isPackFolder);
+          const selectableItems = getPackSelectableItems(cat);
           const selectedCount = Object.keys(previewPackDraft.selection).length;
+          const keptCount = Math.max(0, selectableItems.length - selectedCount);
           const itemHtml = selectableItems.map(item => {
             const itemId = item.id || item.path || item.fullName;
             const checked = previewPackDraft.selection[getPackKey(cat, item)] ? 'checked' : '';
@@ -341,16 +352,17 @@
             </label>`;
           }).join('');
           bodyHtml = `
+            <div style="color:#94a3b8;font-size:12px;margin:8px 0 4px;">默认全部收纳到新文件夹；取消勾选表示留在原来的分区。</div>
             <div style="display:flex;gap:8px;margin:8px 0;flex-wrap:wrap;align-items:center;">
-              <button class="btn btn-ghost" data-pack-action="draft-select-all">全选</button>
-              <button class="btn btn-ghost" data-pack-action="draft-clear-all">全不选</button>
-              <button class="btn btn-primary" data-pack-action="draft-confirm">确认（已选 ${selectedCount}）</button>
+              <button class="btn btn-ghost" data-pack-action="draft-select-all">全部保留</button>
+              <button class="btn btn-ghost" data-pack-action="draft-clear-all">全部收纳</button>
+              <button class="btn btn-primary" data-pack-action="draft-confirm">确认（收纳 ${selectedCount}，保留 ${keptCount}）</button>
               <button class="btn btn-ghost" data-pack-action="draft-cancel">取消</button>
             </div>
             ${canRetargetToFolder(cat) ? `
             <label style="display:flex;align-items:center;gap:6px;color:#94a3b8;font-size:12px;margin:0 0 8px;">
               <input type="checkbox" data-pack-action="draft-target" ${previewPackDraft.targetCategory === PACK_FOLDER_TARGET ? 'checked' : ''}>
-              <span>把文件夹放到「${escapeHTML(PACK_FOLDER_TARGET)}」分区（默认留在「${escapeHTML(cat)}」分区）</span>
+              <span>把新文件夹放到「${escapeHTML(PACK_FOLDER_TARGET)}」分区</span>
             </label>` : ''}
             <div style="display:flex;flex-wrap:wrap;gap:8px;max-height:160px;overflow:auto;">${itemHtml || '<span style="color:#64748b;font-size:12px;">该分类没有可收纳的图标了</span>'}</div>`;
         } else {
@@ -376,7 +388,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px;">
           <div>
             <div style="color:#e2e8f0;font-size:13px;font-weight:600;">收纳到文件夹</div>
-            <div style="color:#64748b;font-size:12px;margin-top:2px;">点「新建文件夹」后勾选要收纳的图标，确认并命名即可。同一分类可建多个文件夹。</div>
+            <div style="color:#64748b;font-size:12px;margin-top:2px;">点「新建文件夹」后默认全部收纳，取消勾选要留在原分区的图标，确认并命名即可。同一分类可建多个文件夹。</div>
           </div>
           <div style="color:#94a3b8;font-size:12px;white-space:nowrap;">已收纳 ${getPackedPreviewCount()} 项</div>
         </div>
