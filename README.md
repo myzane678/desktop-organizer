@@ -32,7 +32,7 @@ https://github.com/myzane678/desktop-organizer/releases
 推荐普通用户下载 NSIS 安装包：
 
 ```text
-Desktop-Organizer-Setup-1.0.3.exe
+Desktop-Organizer-Setup-1.0.4.exe
 ```
 
 安装后会自动创建：
@@ -92,6 +92,14 @@ npm run verify:classifier
 
 ## 更新日志
 
+### v1.0.4
+
+- 自定义桌面布局支持勾选多个图标批量移入/移出分区。
+- 自定义桌面布局支持分区上移/下移，并在分区改名后同步应用。
+- 移除自定义布局底部预览区域，为文件列表和分区列表释放更多空间。
+- “收纳到文件夹”改为新建时默认全选收纳，取消勾选可保留在原分区。
+- 修复预览态删除收纳文件夹后成员回到原分区的交互预期。
+
 ### v1.0.3
 
 - 修复部分用户机器上“桌面”视图无法显示真实文件图标、全部退回默认文档图标的问题。
@@ -112,7 +120,7 @@ npm run verify:classifier
 
 ## 发布状态
 
-当前版本已发布 Windows 安装包、portable 免安装版和源码包。普通用户推荐下载 `Desktop-Organizer-Setup-1.0.3.exe` 安装包。
+当前版本已发布 Windows 安装包、portable 免安装版和源码包。普通用户推荐下载 `Desktop-Organizer-Setup-1.0.4.exe` 安装包。
 
 ## License
 
